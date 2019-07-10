@@ -4,12 +4,15 @@ from keras.models import Model
 import keras.backend as K
 
 
-def create_model(input_shape):
-    '''Baseline model: simply upsample the input image.'''
+def create_model(input_shape, activation='relu', num_filters=[128, 64], kernel_sizes=[9, 3, 5]):
+    '''SRCNN architecture: https://arxiv.org/abs/1501.00092'''
     input = Input(shape=input_shape)
 
-    x = UpSampling2D(size=(3, 3))(input)
-    x = Conv2D(1, kernel_size=(1,1), padding='same')(x)
+    x = Conv2D(num_filters[0], kernel_size=kernel_sizes[0], padding='same', activation=activation)(input)
+    x = BatchNorm()(x)
+    x = Conv2D(num_filters[1], kernel_size=kernel_sizes[1], padding='same', activation=activation)(x)
+    x = BatchNorm()(x)
+    x = Conv2D(1, kernel_size=kernel_sizes[2], padding='same', activation='linear')(x)
 
     model = Model(inputs=input, outputs=x)
     return model
