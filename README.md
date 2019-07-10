@@ -7,6 +7,10 @@ This is my quick attempt at the PROBA-V Super Resolution Competition. Competitio
 
 > “In this competition you are given multiple images of each of 74 Earth locations and you are asked to develop an algorithm to fuse them together into a single one. The result will be a "super-resolved" image that is checked against a high resolution image taken from the same satellite, [PROBA-V](https://en.wikipedia.org/wiki/PROBA-V).”
 
+## Custom Architecture
+![architecture](images/architecture.png)
+I developed a custom deep learning architecture specifically for this task. See report for details.
+
 ## Usage
 ### Train on Local Machine
 1. Make sure you have [conda](https://www.anaconda.com) installed
