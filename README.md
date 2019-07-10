@@ -12,6 +12,13 @@ This is my quick attempt at the PROBA-V Super Resolution Competition. Competitio
 I developed a custom deep learning architecture specifically for this task. See report for details.
 
 ## Usage
+### Pre-Trained Model & Results
+`Notebook.ipynb` is the main file containing training and results.
+
+`model.h5` is the fully trained model.
+
+`submission.zip` contains the results for submission (inference on the test set).
+
 ### Train on Local Machine
 1. Make sure you have [conda](https://www.anaconda.com) installed
 2. Clone this repo
@@ -40,3 +47,13 @@ git clone https://github.com/rizandigp/keras_superconvergence
 ### Train on Google Colab
 1. Upload `Notebook_Colab.ipynb`, `dataset.py`, `model.py` and `training.py` to Colab
 2. Run the notebook
+
+## Results
+### Results on Validation Set
+![val_0](images/val_0.png)
+![val_1](images/val_1.png)
+![val_2](images/val_2.png)
+
+### Results on Test Set
+![val_0](images/test_0.png)
+![val_1](images/test_1.png)
