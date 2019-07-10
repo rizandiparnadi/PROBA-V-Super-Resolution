@@ -15,6 +15,8 @@ I developed a custom deep learning architecture specifically for this task. See 
 ### Pre-Trained Model & Results
 `Notebook.ipynb` is the main file containing training and results.
 
+`Report.pdf` is the project report describing problem analysis, approach and results.
+
 `model.h5` is the fully trained model.
 
 `submission.zip` contains the results for submission (inference on the test set).
