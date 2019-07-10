@@ -1,18 +1,83 @@
 import keras
-from keras.layers import Input, UpSampling2D, Conv2D
+from keras.layers import Input, UpSampling2D, Conv2D, MaxPooling2D, Conv2DTranspose, Add, Concatenate, Dropout, BatchNormalization, Activation
 from keras.models import Model
 import keras.backend as K
 
 
-def create_model(input_shape):
-    '''Baseline model: simply upsample the input image.'''
+def create_model(input_shape, activation='relu'):
+    '''Architecture based on U-Net (https://arxiv.org/abs/1505.04597) with residual blocks.'''
     input = Input(shape=input_shape)
 
-    x = UpSampling2D(size=(3, 3))(input)
-    x = Conv2D(1, kernel_size=(1,1), padding='same')(x)
+    encoder_0, encoder_0_pool = encoder_block(input, 64, activation=activation) # 384^2
+    encoder_1, encoder_1_pool = encoder_block(encoder_0_pool, 64, activation=activation) # 192^2
+    encoder_2, encoder_2_pool = encoder_block(encoder_1_pool, 128, activation=activation) # 96^2
+    encoder_3, encoder_3_pool = encoder_block(encoder_2_pool, 256, activation=activation) # 48^2
+    encoder_4, encoder_4_pool = encoder_block(encoder_3_pool, 512, activation=activation) # 24^2
 
-    model = Model(inputs=input, outputs=x)
+    center = center_block(encoder_4_pool, 1024, activation=activation) # 12^2
+
+    decoder_0 = decoder_block(center, encoder_4, 512, activation=activation) # 24^2
+    decoder_1 = decoder_block(decoder_0, encoder_3, 256, activation=activation) # 48^2
+    decoder_2 = decoder_block(decoder_1, encoder_2, 128, activation=activation) # 96^2
+    decoder_3 = decoder_block(decoder_2, encoder_1, 64, activation=activation) # 192^2
+    decoder_4 = decoder_block(decoder_3, encoder_0, 64, activation=activation) # 384^2
+
+    output = BatchNorm()(decoder_4)
+    output = Conv2D(1, kernel_size=(3, 3), padding='same', activation='linear')(output)
+    model = Model(inputs=input, outputs=output)
     return model
+
+def residual_block(input_tensor, num_filters, activation='relu', end_with_activation=True):
+    x = Conv2D(num_filters, (3, 3), padding='same', activation=activation, kernel_initializer='he_normal')(input_tensor)
+    x = BatchNorm()(x)
+    x = Conv2D(num_filters, (3, 3), padding='same', activation='linear', kernel_initializer='he_normal')(x)
+    x = BatchNorm()(x)
+    x = shortcut(input_tensor, x, activation=activation)
+    if end_with_activation:
+      x = Activation(activation)(x)
+    return x
+
+def shortcut(shortcut_tensor, residual_tensor, activation='relu'):
+    '''Residual block's skip connection .If filters are the same size, we can simply add, 
+    but if they are different, we do 1x1 convolution first to match tensor shapes.'''
+    shortcut_shape = K.int_shape(shortcut_tensor)
+    residual_shape = K.int_shape(residual_tensor)
+    if shortcut_shape!=residual_shape:
+        num_filters = residual_shape[-1]
+        shortcut_tensor = Conv2D(num_filters, (1, 1), padding='same', activation=activation, kernel_initializer='he_normal')(shortcut_tensor)
+    return Add()([shortcut_tensor, residual_tensor])
+
+def encoder_block(input_tensor, num_filters, activation='relu', downsample_type='MaxPooling2D'):
+    encoder = residual_block(input_tensor, num_filters)
+    if downsample_type=='MaxPooling2D':
+        encoder_pooled = MaxPooling2D(pool_size=(2, 2))(encoder)
+    elif downsample_type=='Conv2D':
+        encoder_pooled = Conv2D(num_filters, kernel_size=(2, 2), strides=(2, 2), padding='valid', activation=activation, kernel_initializer='he_normal')(encoder)
+    else:
+        raise ValueError('Unknown downsample_type:', downsample_type)
+    return encoder, encoder_pooled
+
+def center_block(input_tensor, num_filters, activation='relu'):
+    block = residual_block(input_tensor, num_filters, activation=activation)
+    return block
+
+def decoder_block(input_tensor, skip_tensor, num_filters, activation='relu', upsample_type='Conv2DTranspose', skip_type='Concatenate', end_with_activation=True):
+    if upsample_type=='UpSampling2D':
+        decoder = UpSampling2D(size=(2, 2))(input_tensor)
+    elif upsample_type=='Conv2DTranspose':
+        decoder = Conv2DTranspose(num_filters, kernel_size=(2, 2), strides=(2, 2), padding='same', activation=activation, kernel_initializer='he_normal')(input_tensor)
+    else:
+        raise ValueError('Unknown upsample_type:', upsample_type)
+        
+    if skip_type=='Concatenate':
+        decoder = Concatenate(axis=-1)([decoder, skip_tensor])
+    elif skip_type=='Add':
+        decoder = Add()([decoder, skip_tensor])
+    else:
+        raise ValueError('Unknown skip_type:', skip_type)
+        
+    decoder = residual_block(decoder, num_filters, activation=activation, end_with_activation=end_with_activation)
+    return decoder
 
 def PSNR(y_true, y_pred):
     '''Peak Signal to Noise Ratio metric for Keras.'''
